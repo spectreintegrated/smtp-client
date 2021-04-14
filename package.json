@@ -1,0 +1,24 @@
+{
+	"name": "spectre-integrated-smtp-client",
+	"version": "1.0.0",
+	"description": "An smtp client",
+	"main": "index.js",
+	"homepage": "https://github.com/spectreintegrated/smtp-client",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/spectreintegrated/smtp-client.git"
+	},
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [
+		"smtp",
+		"mailer"
+	],
+	"author": "Charles Johannisen",
+	"license": "ISC",
+	"dependencies": {
+		"nodemailer": "^6.5.0"
+	},
+	"devDependencies": {}
+}
