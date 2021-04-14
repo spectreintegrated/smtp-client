@@ -10,7 +10,7 @@ const DATA = 'DATA'
 const QUIT = 'QUIT'
 
 const isEmail = input => {
-	const regexp = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    const regexp = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return regexp.test(String(input).toLowerCase())
 }
 
@@ -22,7 +22,7 @@ class smtp {
         subject,
         message: {
             text,
-	        html
+            html
         },
         upgradeConnection = true,
         attachments,
@@ -38,14 +38,14 @@ class smtp {
         this.subject = subject
         this.message = {
             text,
-	        html
+            html
         }
         this.attachments = attachments
         this.hostname = this.from.split('@')[1]
         this.records = null
         this.host = null
 
-        this.domain = to.split('@')[1]
+        this.domain = this.to.split('@')[1]
         this.status = ''
         this.currentMx = 0
         this.port = 25
@@ -163,9 +163,9 @@ class smtp {
     socketOnTimeout = () => {
         console.log(`Connection timed out to ${this.host}`)
         this.socket.destroy()
+        this.currentMx++
         if (this.currentMx < this.records.length) {
             console.log(`Retry number ${this.currentMx + 1}`)
-            this.currentMx++
             this.status = ''
             this.close = false
             this.socket = null
@@ -211,7 +211,7 @@ class smtp {
         }
         
         this.host = this.records[this.currentMx]
-        this.socket.connect(25, this.host)
+        this.socket.connect(this.port, this.host)
     }
 
     buildDataArray = () => {
