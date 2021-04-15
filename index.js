@@ -1,6 +1,7 @@
 const tls = require('tls')
 const net = require('net')
 const dns = require('dns')
+const EventEmitter = require('events')
 const MailComposer = require('nodemailer/lib/mail-composer')
 
 const STARTTLS = 'STARTTLS'
@@ -54,7 +55,7 @@ class smtp {
         this.starttls = false
         this.notls = upgradeConnection ? false : true
 
-        this.completed = false
+        this.completed = new EventEmitter()
         this.error = null
     }
 
@@ -137,8 +138,8 @@ class smtp {
                 this.socket.write(line)
             })
         } else if (this.close) {
-            this.completed = true
             this.socket.destroy()
+            this.completed.emit('true', true)
         }
     }
 
@@ -168,27 +169,24 @@ class smtp {
             console.log(`Retry number ${this.currentMx + 1}`)
             this.status = ''
             this.close = false
-            this.socket = null
             this.exec()
         } else {
             console.log('No retries left')
-            this.error = {
-                error: 'All mx records timed out.'
-            }
+            this.completed.emit('true', false, new Error('All mx records timed out.'))
         }
     }
 
     socketOnClose = () => {
         console.log('Connection closed')
-        if (this.currentMx >= this.records.length) {
-            this.completed = true
-        }
     }
 
     socketOnError = error => {
         console.log(`ERROR: ${error}`)
-        this.completed = true
-        this.error = error
+        this.completed.emit('true', true, error)
+    }
+
+    socketOnLookup = (error, address, family, host) => {
+        // console.log({lookup: {error, address, family, host}})
     }
 
     initSocket = () => {
@@ -198,6 +196,7 @@ class smtp {
         this.socket.on('timeout', this.socketOnTimeout)
         this.socket.on('close', this.socketOnClose)
         this.socket.on('error', this.socketOnError)
+        this.socket.on('lookup', this.socketOnLookup)
     }
 
     exec = async () => {
@@ -205,11 +204,8 @@ class smtp {
             this.records = await this.getMxRecord(this.domain)
         }
 
-        if (!this.socket) {
-            this.socket = new net.Socket()
-            this.initSocket()
-        }
-        
+        this.socket = new net.Socket()
+        this.initSocket()
         this.host = this.records[this.currentMx]
         this.socket.connect(this.port, this.host)
     }
@@ -236,18 +232,14 @@ class smtp {
     }
 
     send = () => {
-        let eventTimer
         return new Promise(resolve => {
+            this.completed.on('true', (success, error) => {
+                resolve({
+                    error,
+                    success
+                })
+            })
             this.exec()
-            eventTimer = setInterval(() => {
-                if (this.completed) {
-                    clearInterval(eventTimer)
-                    resolve({
-                        error: this.error,
-                        success: this.error ? false : true
-                    })
-                }
-            }, 500)
         })
     }
 }
