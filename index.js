@@ -27,7 +27,8 @@ class smtp {
         },
         upgradeConnection = true,
         attachments,
-        replyTo
+        replyTo,
+        debug = false
     }) {
         if (!isEmail(to) || !isEmail(from)) {
             throw new Error('to/from value must be an email')
@@ -57,6 +58,7 @@ class smtp {
 
         this.completed = new EventEmitter()
         this.error = null
+        this.debug = debug
     }
 
     getCode = request => {
@@ -90,6 +92,7 @@ class smtp {
                 break
 
             case 502:
+            case 503:
                 if (!this.notls && !this.starttls) {
                     response = `MAIL FROM:<${this.from}>\n`
                     this.status = RCPT
@@ -130,6 +133,8 @@ class smtp {
                 }
                 break
         }
+
+        this.print({request, code, response})
         
         if (typeof response === 'string' && response !== '') {
             this.socket.write(response)
@@ -140,6 +145,12 @@ class smtp {
         } else if (this.close) {
             this.socket.destroy()
             this.completed.emit('true', true)
+        }
+    }
+
+    print = log => {
+        if (this.debug) {
+            console.log(log)
         }
     }
 
@@ -162,31 +173,31 @@ class smtp {
     }
 
     socketOnTimeout = () => {
-        console.log(`Connection timed out to ${this.host}`)
+        this.print(`Connection timed out to ${this.host}`)
         this.socket.destroy()
         this.currentMx++
         if (this.currentMx < this.records.length) {
-            console.log(`Retry number ${this.currentMx + 1}`)
+            this.print(`Retry number ${this.currentMx + 1}`)
             this.status = ''
             this.close = false
             this.exec()
         } else {
-            console.log('No retries left')
+            this.print('No retries left')
             this.completed.emit('true', false, new Error('All mx records timed out.'))
         }
     }
 
     socketOnClose = () => {
-        console.log('Connection closed')
+        this.print('Connection closed')
     }
 
     socketOnError = error => {
-        console.log(`ERROR: ${error}`)
+        this.print(`ERROR: ${error}`)
         this.completed.emit('true', true, error)
     }
 
     socketOnLookup = (error, address, family, host) => {
-        // console.log({lookup: {error, address, family, host}})
+        this.print({lookup: {error, address, family, host}})
     }
 
     initSocket = () => {
@@ -232,6 +243,7 @@ class smtp {
     }
 
     send = () => {
+        this.exec()
         return new Promise(resolve => {
             this.completed.on('true', (success, error) => {
                 resolve({
@@ -239,7 +251,6 @@ class smtp {
                     success
                 })
             })
-            this.exec()
         })
     }
 }
