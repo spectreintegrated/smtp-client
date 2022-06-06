@@ -28,7 +28,10 @@ class smtp {
         upgradeConnection = true,
         attachments,
         replyTo,
-        debug = false
+        debug = false,
+        timeout = {
+            connection: 8000
+        }
     }) {
         if (!isEmail(to) || !isEmail(from)) {
             throw new Error('to/from value must be an email')
@@ -59,6 +62,7 @@ class smtp {
         this.completed = new EventEmitter()
         this.error = null
         this.debug = debug
+        this.timeout = timeout
     }
 
     getCode = request => {
@@ -201,7 +205,7 @@ class smtp {
     }
 
     initSocket = () => {
-        this.socket.setTimeout(8000)
+        this.socket.setTimeout(this.timeout.connection)
         this.socket.setEncoding('utf8')
         this.socket.on('data', this.socketOnData)
         this.socket.on('timeout', this.socketOnTimeout)

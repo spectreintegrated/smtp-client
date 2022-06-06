@@ -18,8 +18,11 @@ const mail = new smtpClient({
         upgradeConnection: true, // optional Boolean. Default: true. false will not (attempt to) upgrade the connection to TLS
         attachments: [], // optional Array. see https://nodemailer.com/extras/mailcomposer/#attachments 
         replyTo: 'doreply@example.com', // optional String
-        debug: false // optional Boolean. Default: false. true will print out progress/interaction
+        debug: false, // optional Boolean. Default: false. true will print out progress/interaction
+        timeout: { // optional Object. Default: {connection: 8000}.
+            connection: 8000
+        }
 })
 
-mail.send() // returns Promise, resolves to { status: { error: null, success: true } }
+mail.send() // returns Promise, resolves to {error: null, success: true}
 ```
