@@ -57,12 +57,20 @@ class smtp {
         this.close = false
         this.socket = null
         this.starttls = false
+        this.upgradeConnection = upgradeConnection
         this.notls = upgradeConnection ? false : true
 
         this.completed = new EventEmitter()
         this.error = null
         this.debug = debug
         this.timeout = timeout
+    }
+
+    resetValues = () => {
+        this.starttls = false
+        this.notls = this.upgradeConnection ? false : true
+        this.status = ''
+        this.close = false
     }
 
     getCode = request => {
@@ -80,6 +88,7 @@ class smtp {
         let response = ''
 
         switch (code) {
+            case 550:
             case 221:
                 this.close = true
                 break
@@ -182,8 +191,7 @@ class smtp {
         this.currentMx++
         if (this.currentMx < this.records.length) {
             this.print(`Retry number ${this.currentMx + 1}`)
-            this.status = ''
-            this.close = false
+            this.resetValues()
             this.exec()
         } else {
             this.print('No retries left')
