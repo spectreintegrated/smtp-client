@@ -20,7 +20,12 @@ const mail = new smtpClient({
         replyTo: 'doreply@example.com', // optional String
         debug: false, // optional Boolean. Default: false. true will print out progress/interaction
         timeout: { // optional Object. Default: {connection: 8000}.
-            connection: 8000
+                connection: 8000
+        },
+        dkimParams: { // optional Object. see https://nodemailer.com/dkim
+                domainName: '', // required String
+                keySelector: '', // required String
+                privateKey: '' // required String 
         }
 })
 

@@ -3,6 +3,7 @@ const net = require('net')
 const dns = require('dns')
 const EventEmitter = require('events')
 const MailComposer = require('nodemailer/lib/mail-composer')
+const DKIM = require('nodemailer/lib/dkim')
 
 const STARTTLS = 'STARTTLS'
 const EHLO = 'EHLO'
@@ -31,7 +32,8 @@ class smtp {
         debug = false,
         timeout = {
             connection: 8000
-        }
+        },
+        dkimParams
     }) {
         if (!isEmail(to) || !isEmail(from)) {
             throw new Error('to/from value must be an email')
@@ -64,6 +66,7 @@ class smtp {
         this.error = null
         this.debug = debug
         this.timeout = timeout
+        this.dkimParams = dkimParams
     }
 
     resetValues = () => {
@@ -233,6 +236,37 @@ class smtp {
         this.socket.connect(this.port, this.host)
     }
 
+    dkim = async (domainName, keySelector, privateKey, data) => {
+        return new Promise(resolve => {
+            let dkimInit = new DKIM({domainName, keySelector, privateKey})
+            const output = dkimInit.sign(data)
+            let chunks = []
+
+            let reading = false
+            let readNext = () => {
+                let chunk = output.read(10 * 1024)
+                if (chunk === null) {
+                    reading = false
+                    return
+                }
+                reading = true;
+                chunks.push(chunk)
+                setImmediate(readNext)
+            };
+
+            output.on('readable', () => {
+                if (!reading) {
+                    readNext()
+                }
+            })
+
+            output.on('end', () => {
+                const message = Buffer.concat(chunks).toString()
+                resolve(message)
+            })
+        })
+    }
+
     buildDataArray = () => {
         return new Promise(resolve => {
             const message = {
@@ -245,9 +279,16 @@ class smtp {
                 attachments: this.attachments
             }
             const mail = new MailComposer(message)
-            mail.compile().build((err, m) => {
+            mail.compile().build(async (err, m) => {
+                let mailData = m.toString()
+                if (this.dkimParams) {
+                    const {domainName, keySelector, privateKey} = this.dkimParams || {}
+                    if (domainName && keySelector && privateKey) {
+                        mailData = await this.dkim(domainName, keySelector, privateKey, m)
+                    }
+                }
                 resolve([
-                    ...m.toString().split('\n').map(line => `${line}\n`),
+                    ...mailData.split('\n').map(line => `${line}\n`),
                     '\r\n.\r\n'
                 ])
             })
